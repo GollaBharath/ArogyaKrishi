@@ -48,16 +48,16 @@ dependencies:
   permission_handler: ^12.0.1
 
   # Device info
-  device_info_plus: ^10.1.0
+  device_info_plus: ^12.3.0
 
   # Network connectivity detection
-  connectivity_plus: ^5.0.0
+  connectivity_plus: ^7.0.0
 
   # Open maps and external links
   url_launcher: ^6.2.6
 
   # Location for nearby stores
-  geolocator: ^12.0.0
+  geolocator: ^14.0.2
 
   # Local cache for preferences
   shared_preferences: ^2.2.3

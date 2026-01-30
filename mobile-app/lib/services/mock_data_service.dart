@@ -113,7 +113,7 @@ class OfflineMockDataService {
     'wilting': {
       'nameKey': 'symptom.wilting.name',
       'descriptionKey': 'symptom.wilting.desc',
-      'image': 'assets/images/symptoms/late_blight.png',
+      'image': 'assets/images/symptoms/wilting.png',
     },
     'leaf_curl': {
       'nameKey': 'symptom.leaf_curl.name',

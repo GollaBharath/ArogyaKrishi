@@ -27,7 +27,8 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
   final ApiService _apiService = ApiService();
   final LocalizationService _localizationService = LocalizationService();
 
-  bool _isLoading = false;
+  bool _isLoadingRemedies = false;
+  bool _isLoadingStores = false;
   String? _errorMessage;
   String? _locationError;
   String _languageCode = AppConstants.fallbackLanguageCode;
@@ -62,9 +63,44 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
   }
 
   Future<void> _loadSuggestedTreatments() async {
+    // Load remedies and stores in parallel, but update UI separately
+    _loadRemedies();
+    _loadStores();
+  }
+
+  Future<void> _loadRemedies() async {
     setState(() {
-      _isLoading = true;
+      _isLoadingRemedies = true;
       _errorMessage = null;
+    });
+
+    try {
+      // Fetch remedies only (fast, local data)
+      final response = await _apiService.getSuggestedTreatments(
+        disease: widget.disease,
+        language: _languageCode,
+        lat: null, // Don't fetch stores yet
+        lng: null,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRemedies = false;
+        _remedies = response.remedies;
+        _displayDisease = response.disease;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRemedies = false;
+        _errorMessage = _t('unexpected_error');
+      });
+    }
+  }
+
+  Future<void> _loadStores() async {
+    setState(() {
+      _isLoadingStores = true;
       _locationError = null;
     });
 
@@ -73,6 +109,16 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
       final lat = position?.latitude;
       final lng = position?.longitude;
 
+      if (lat == null || lng == null) {
+        if (!mounted) return;
+        setState(() {
+          _isLoadingStores = false;
+          _locationError = _t('location_unavailable');
+        });
+        return;
+      }
+
+      // Fetch stores (slow, external API)
       final response = await _apiService.getSuggestedTreatments(
         disease: widget.disease,
         language: _languageCode,
@@ -82,19 +128,14 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
 
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _remedies = response.remedies;
+        _isLoadingStores = false;
         _stores = response.stores;
-        _displayDisease = response.disease;
-        if (lat == null || lng == null) {
-          _locationError = _t('location_unavailable');
-        }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _errorMessage = _t('unexpected_error');
+        _isLoadingStores = false;
+        _locationError = _t('location_unavailable');
       });
     }
   }
@@ -230,7 +271,7 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 8),
-          if (_isLoading)
+          if (_isLoadingRemedies)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -273,7 +314,7 @@ class _SuggestedTreatmentsScreenState extends State<SuggestedTreatmentsScreen> {
           Text(_locationError!, style: TextStyle(color: Colors.orange[700]))
         else if (_errorMessage != null)
           Text(_errorMessage!, style: TextStyle(color: Colors.red[700]))
-        else if (_isLoading)
+        else if (_isLoadingStores)
           const Center(child: CircularProgressIndicator())
         else if (_stores.isEmpty)
           Card(

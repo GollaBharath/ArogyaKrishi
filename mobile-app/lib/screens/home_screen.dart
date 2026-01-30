@@ -9,6 +9,7 @@ import '../services/offline_detector.dart';
 import '../models/detection_result.dart';
 import '../models/nearby_alert.dart';
 import 'offline_detection_screen.dart';
+import 'detection_result_screen.dart';
 import 'treatment_options_screen.dart';
 import '../utils/constants.dart';
 import '../utils/localization.dart';
@@ -248,12 +249,17 @@ class _HomeScreenState extends State<HomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () async {
-                    await _applyLanguageSelection(
-                      selectedCode,
-                      markChosen: true,
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
+                    // Close dialog first
+                    Navigator.of(context).pop();
+
+                    // Then apply language selection
+                    try {
+                      await _applyLanguageSelection(
+                        selectedCode,
+                        markChosen: true,
+                      );
+                    } catch (e) {
+                      // Silent fail - language is saved locally even if server sync fails
                     }
                   },
                   child: Text(_t('continue')),
@@ -439,9 +445,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
 
-      // Show result dialog
+      // Show result screen
       if (mounted) {
-        _showDetectionResultDialog(result);
+        _showDetectionResult(result);
       }
     } on ApiException catch (e) {
       setState(() {
@@ -454,6 +460,17 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Show detection result in full page
+  void _showDetectionResult(DetectionResult result) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            DetectionResultScreen(result: result, languageCode: _languageCode),
+      ),
+    );
   }
 
   /// Show detection result in dialog
