@@ -64,29 +64,29 @@
 
 ## Phase F4: Backend Integration
 
-- [ ] Implement API client
-- [ ] Call `/detect-image`
-- [ ] Handle loading state
-- [ ] Handle error responses
-- [ ] Parse JSON response
+- [x] Implement API client
+- [x] Call `/detect-image`
+- [x] Handle loading state
+- [x] Handle error responses
+- [x] Parse JSON response
 
 ---
 
 ## Phase F5: Detection Result UI
 
-- [ ] Display crop name
-- [ ] Display disease name
-- [ ] Display confidence score
-- [ ] Display remedies list
-- [ ] Display advisory disclaimer
+- [x] Display crop name
+- [x] Display disease name
+- [x] Display confidence score
+- [x] Display remedies list
+- [x] Display advisory disclaimer
 
 ---
 
 ## Phase F6: Local Language Support (UI)
 
-- [ ] Select supported languages
-- [ ] Toggle language setting
-- [ ] Display translated content from backend
+- [x] Select supported languages
+- [x] Toggle language setting
+- [x] Display translated content from backend
 
 ---
 

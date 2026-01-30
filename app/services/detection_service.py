@@ -48,10 +48,12 @@ class DetectionService:
             model_loader = get_model_loader()
             disease, confidence, crop = model_loader.predict(image_array)
             
-            # Get remedies
-            remedies = RemedyService.get_remedies_list(disease)
+            # Get translated names and remedies
+            translated_crop = RemedyService.get_translated_crop(crop, language)
+            translated_disease = RemedyService.get_translated_disease(disease, language)
+            translated_remedies = RemedyService.get_remedies_list(disease, language)
             
-            # Save to database if session provided
+            # Save to database if session provided (store English names)
             if db_session is not None and confidence >= 0.5:
                 logger.info(f"Saving detection event: {disease} (confidence: {confidence})")
                 try:
@@ -66,12 +68,12 @@ class DetectionService:
                 except Exception as e:
                     logger.warning(f"Failed to save detection event: {e}")
             
-            # Build response
+            # Build response with translated content
             response = {
-                "crop": crop,
-                "disease": disease,
+                "crop": translated_crop,
+                "disease": translated_disease,
                 "confidence": round(confidence, 3),
-                "remedies": remedies,
+                "remedies": translated_remedies,
                 "language": language
             }
             

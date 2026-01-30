@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/offline_detector.dart';
 import '../models/detection_result.dart';
 import 'offline_detection_screen.dart';
+import 'scan_treatment_screen.dart';
 import '../utils/constants.dart';
 import '../utils/localization.dart';
 
@@ -274,6 +275,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ScanTreatmentScreen(
+                      disease: result.disease,
+                      languageCode: _languageCode,
+                    ),
+                  ),
+                );
+              },
+              child: Text(_t('scan_treatment')),
+            ),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(_t('close')),

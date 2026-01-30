@@ -34,3 +34,24 @@ Response:
     ]
 }
 ```
+
+POST /scan-treatment
+Request:
+
+- multipart/form-data
+  - image
+  - disease (localized or English key)
+  - item_label (optional)
+  - language (en|te|hi|kn|ml)
+
+Response:
+
+```json
+{
+	"disease": "string",
+	"language": "en|te|hi|kn|ml",
+	"item_label": "string | null",
+	"will_cure": true,
+	"feedback": "string"
+}
+```

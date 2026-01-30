@@ -24,3 +24,12 @@ class AlertData(BaseModel):
 class NearbyAlertsResponse(BaseModel):
     """Response model for /nearby-alerts endpoint."""
     alerts: List[AlertData]
+
+
+class ScanTreatmentResponse(BaseModel):
+    """Response model for /scan-treatment endpoint."""
+    disease: str
+    language: str
+    item_label: Optional[str] = None
+    will_cure: bool
+    feedback: str
