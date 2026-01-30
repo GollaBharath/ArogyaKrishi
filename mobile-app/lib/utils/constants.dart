@@ -17,6 +17,11 @@ class AppConstants {
   ];
   static const String fallbackLanguageCode = 'en';
 
+  // Preference Keys
+  static const String prefLanguageCode = 'pref_language_code';
+  static const String prefLanguageChosen = 'pref_language_chosen';
+  static const String prefLanguageSync = 'pref_language_sync';
+
   // Confidence Thresholds
   static const double lowConfidenceThreshold = 0.5;
   static const double highConfidenceThreshold = 0.8;

@@ -53,6 +53,15 @@ dependencies:
   # Network connectivity detection
   connectivity_plus: ^5.0.0
 
+  # Open maps and external links
+  url_launcher: ^6.2.6
+
+  # Location for nearby stores
+  geolocator: ^12.0.0
+
+  # Local cache for preferences
+  shared_preferences: ^2.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

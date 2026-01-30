@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../models/detection_result.dart';
 import '../models/nearby_alert.dart';
 import '../models/scan_treatment_result.dart';
+import '../models/suggested_treatments_response.dart';
 import '../utils/constants.dart';
 
 /// API Service for ArogyaKrishi backend
@@ -185,6 +186,77 @@ class ApiService {
       } else {
         throw ApiException(
           'Failed to fetch alerts: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      throw ApiException('Network error: $e', 0);
+    }
+  }
+
+  /// Register device for nearby notifications
+  Future<void> registerDevice({
+    required String deviceToken,
+    required double lat,
+    required double lng,
+    bool notificationsEnabled = true,
+    String? language,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/register-device'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'device_token': deviceToken,
+          'latitude': lat,
+          'longitude': lng,
+          'notifications_enabled': notificationsEnabled,
+          if (language != null) 'language': language,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw ApiException(
+          'Failed to register device: ${response.statusCode}',
+          response.statusCode,
+        );
+      }
+    } catch (e) {
+      throw ApiException('Network error: $e', 0);
+    }
+  }
+
+  /// Fetch suggested treatments and nearby pesticide stores
+  ///
+  /// Parameters:
+  /// - [disease]: Disease name (localized or English key)
+  /// - [language]: Optional language code (en, te, hi, kn, ml)
+  /// - [lat]: Optional latitude
+  /// - [lng]: Optional longitude
+  Future<SuggestedTreatmentsResponse> getSuggestedTreatments({
+    required String disease,
+    String? language,
+    double? lat,
+    double? lng,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/suggested-treatments').replace(
+        queryParameters: {
+          'disease': disease,
+          if (language != null) 'language': language,
+          if (lat != null) 'lat': lat.toString(),
+          if (lng != null) 'lng': lng.toString(),
+        },
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body) as Map<String, dynamic>;
+        return SuggestedTreatmentsResponse.fromJson(jsonData);
+      } else {
+        throw ApiException(
+          'Failed to fetch suggested treatments: ${response.statusCode}',
           response.statusCode,
         );
       }

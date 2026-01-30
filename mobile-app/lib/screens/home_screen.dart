@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/image_service.dart';
 import '../services/api_service.dart';
 import '../services/offline_detector.dart';
 import '../models/detection_result.dart';
+import '../models/nearby_alert.dart';
 import 'offline_detection_screen.dart';
-import 'scan_treatment_screen.dart';
+import 'treatment_options_screen.dart';
 import '../utils/constants.dart';
 import '../utils/localization.dart';
 
@@ -29,37 +33,251 @@ class _HomeScreenState extends State<HomeScreen> {
   String _languageCode = AppConstants.fallbackLanguageCode;
   Map<String, String> _strings = {};
   List<LanguagePack> _languagePacks = [];
+  List<NearbyAlert> _nearbyAlerts = [];
+  bool _isFetchingAlerts = false;
+  bool _isLanguageDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     _checkConnectivity();
-    _loadLocalizationPacks();
+    _initializeLanguage();
+    _fetchNearbyAlerts();
+    _registerDevice();
   }
 
-  Future<void> _loadLocalizationPacks() async {
+  Future<void> _registerDevice({String? language}) async {
+    try {
+      final position = await _getCurrentPosition();
+      if (position == null) return;
+
+      final deviceToken = await _getDeviceToken();
+      if (deviceToken == null || deviceToken.isEmpty) return;
+
+      await _apiService.registerDevice(
+        deviceToken: deviceToken,
+        lat: position.latitude,
+        lng: position.longitude,
+        notificationsEnabled: true,
+        language: language,
+      );
+    } catch (_) {
+      // Silent fail for MVP registration
+    }
+  }
+
+  Future<String?> _getDeviceToken() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final info = await deviceInfo.androidInfo;
+        return info.id;
+      }
+      if (Platform.isIOS) {
+        final info = await deviceInfo.iosInfo;
+        return info.identifierForVendor;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _fetchNearbyAlerts() async {
+    setState(() {
+      _isFetchingAlerts = true;
+    });
+
+    try {
+      final position = await _getCurrentPosition();
+      if (position == null) {
+        setState(() {
+          _isFetchingAlerts = false;
+          _nearbyAlerts = [];
+        });
+        return;
+      }
+
+      final response = await _apiService.getNearbyAlerts(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isFetchingAlerts = false;
+        _nearbyAlerts = response.alerts;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isFetchingAlerts = false;
+      });
+    }
+  }
+
+  Future<Position?> _getCurrentPosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return null;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _initializeLanguage() async {
     await _localizationService.loadAll();
+    final prefs = await SharedPreferences.getInstance();
+    final savedCode = prefs.getString(AppConstants.prefLanguageCode);
     final packs = _localizationService.languagePacks;
     if (!mounted) return;
     setState(() {
       _languagePacks = packs;
-      if (!_localizationService.hasLanguage(_languageCode) &&
+      if (savedCode != null && _localizationService.hasLanguage(savedCode)) {
+        _languageCode = savedCode;
+      } else if (!_localizationService.hasLanguage(_languageCode) &&
           packs.isNotEmpty) {
         _languageCode = packs.first.code;
       }
       _strings = _localizationService.getPack(_languageCode)?.strings ?? {};
     });
+
+    if (savedCode != null && _localizationService.hasLanguage(savedCode)) {
+      await _syncLanguageToServer(savedCode);
+    }
+
+    final hasChosen = prefs.getBool(AppConstants.prefLanguageChosen) ?? false;
+    if (!hasChosen && packs.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showLanguagePreferenceDialog();
+        }
+      });
+    }
   }
 
   void _setLanguage(String code) {
+    _applyLanguageSelection(code, markChosen: true);
+  }
+
+  Future<void> _applyLanguageSelection(
+    String code, {
+    bool markChosen = false,
+  }) async {
     setState(() {
       _languageCode = code;
       _strings = _localizationService.getPack(_languageCode)?.strings ?? {};
     });
+
+    await _persistLanguage(code, markChosen: markChosen);
+
+    await _syncLanguageToServer(code);
+  }
+
+  Future<void> _persistLanguage(String code, {bool markChosen = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefLanguageCode, code);
+    if (markChosen) {
+      await prefs.setBool(AppConstants.prefLanguageChosen, true);
+    }
+  }
+
+  Future<void> _syncLanguageToServer(String code) async {
+    await _registerDevice(language: code);
+  }
+
+  Future<void> _showLanguagePreferenceDialog() async {
+    if (_isLanguageDialogOpen) return;
+    _isLanguageDialogOpen = true;
+    String selectedCode = _languageCode;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(_t('select_language_title')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_t('select_language_body')),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 260),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: _languagePacks
+                            .map(
+                              (pack) => RadioListTile<String>(
+                                value: pack.code,
+                                groupValue: selectedCode,
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setDialogState(() {
+                                    selectedCode = value;
+                                  });
+                                },
+                                title: Text(pack.name),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    await _applyLanguageSelection(
+                      selectedCode,
+                      markChosen: true,
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text(_t('continue')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    _isLanguageDialogOpen = false;
   }
 
   String _t(String key) {
     return _strings[key] ?? _localizationService.translate(_languageCode, key);
+  }
+
+  String _tWithVars(String key, Map<String, String> vars) {
+    var value = _t(key);
+    vars.forEach((k, v) {
+      value = value.replaceAll('{$k}', v);
+    });
+    return value;
   }
 
   /// Check initial connectivity and listen for changes
@@ -281,14 +499,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ScanTreatmentScreen(
+                    builder: (context) => TreatmentOptionsScreen(
                       disease: result.disease,
+                      remedies: result.remedies,
                       languageCode: _languageCode,
                     ),
                   ),
                 );
               },
-              child: Text(_t('scan_treatment')),
+              child: Text(_t('treatment_options')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -424,6 +643,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.orange[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Nearby alerts banner
+                if (!_isFetchingAlerts && _nearbyAlerts.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      border: Border.all(color: Colors.blue.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _t('nearby_alerts_title'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                              Text(
+                                _tWithVars('nearby_alerts_body', {
+                                  'count': _nearbyAlerts.length.toString(),
+                                }),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue[700],
                                 ),
                               ),
                             ],
