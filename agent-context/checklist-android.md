@@ -42,23 +42,23 @@
 
 ## Phase F2: App Architecture
 
-- [ ] Define folder structure:
+- [x] Define folder structure:
   - screens/
   - services/
   - models/
   - utils/
 
-- [ ] Choose state management (simple only)
-- [ ] Define API service layer
+- [x] Choose state management (simple only) - using setState
+- [x] Define API service layer (ApiService with detectImage & getNearbyAlerts)
 
 ---
 
 ## Phase F3: Image Capture & Upload
 
-- [ ] Integrate camera/gallery picker
-- [ ] Compress image before upload
-- [ ] Handle permission denial
-- [ ] Preview selected image
+- [x] Integrate camera/gallery picker (image_picker)
+- [x] Compress image before upload (flutter_image_compress)
+- [x] Handle permission denial (permission_handler)
+- [x] Preview selected image (HomeScreen with image preview)
 
 ---
 

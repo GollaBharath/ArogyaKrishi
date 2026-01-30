@@ -37,8 +37,8 @@
 
 ### B1.2 Base Folder Structure
 
-- [ ] Create `app/` package
-- [ ] Create `app/main.py`
+- [x] Create `app/` package
+- [x] Create `app/main.py`
 - [ ] Create `app/api/`
 - [ ] Create `app/services/`
 - [ ] Create `app/models/`
@@ -48,16 +48,57 @@
 
 ### B1.3 App Bootstrapping
 
-- [ ] Initialize FastAPI app
-- [ ] Add CORS middleware
-- [ ] Add startup event handler
-- [ ] Add shutdown handler
+- [x] Initialize FastAPI app
+- [x] Add CORS middleware
+- [x] Add startup event handler
+- [x] Add shutdown handler
 
 ### B1.4 Health & Sanity
 
-- [ ] Add `/health` endpoint
-- [ ] Add `/version` endpoint
+- [x] Add `/health` endpoint
+- [x] Add `/version` endpoint
 - [ ] Verify app runs via Uvicorn
+
+---
+
+## 🔹 Phase B2: Database Setup
+
+> **DB Choice:** SQLite (via SQLAlchemy)
+> **Scope:** detection events only
+> **Non-goals:** auth, users, analytics
+
+### B2.1 Database Configuration
+
+- [ ] Configure SQLite connection URL
+- [ ] Create async SQLAlchemy engine
+- [ ] Create async session factory
+- [ ] Isolate DB config in `app/db/session.py`
+
+### B2.2 Database Models
+
+- [ ] Define `DetectionEvent` ORM model
+- [ ] Fields:
+  - id
+  - disease
+  - latitude
+  - longitude
+  - confidence
+  - created_at
+
+- [ ] Add DB base model
+
+### B2.3 Table Initialization
+
+- [ ] Create DB initialization logic
+- [ ] Run table creation at startup
+- [ ] Ensure idempotent creation
+
+### B2.4 Repository Layer
+
+- [ ] Create detection event repository
+- [ ] Implement `save_event()`
+- [ ] Implement `get_events_within_radius()`
+- [ ] Keep DB logic out of API routes
 
 ---
 
@@ -231,5 +272,3 @@
 - [ ] Add sample requests
 - [ ] Add sample responses
 - [ ] Confirm Flutter/React compatibility
-
----

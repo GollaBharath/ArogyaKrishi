@@ -1,13 +1,39 @@
-import os
+"""Configuration module for ArogyaKrishi backend.
+
+Manages environment variables, settings, and application-wide configuration.
+"""
+
+from pydantic_settings import BaseSettings
 from typing import Optional
 
-class Settings:
-    def __init__(self):
-        self.env = os.getenv("ENV", "development")
-        self.debug = os.getenv("DEBUG", "True").lower() == "true"
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.use_mock_model = os.getenv("USE_MOCK_MODEL", "False").lower() == "true"
-        self.confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.7"))
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
+    
+    # App metadata
+    app_name: str = "ArogyaKrishi Backend"
+    app_version: str = "0.1.0"
+    debug: bool = False
+    
+    # CORS
+    allowed_origins: str = "http://localhost,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:3000"
+    
+    # Image upload
+    max_image_size_mb: int = 10
+    allowed_image_types: str = "image/jpeg,image/png"
+    
+    # ML Model
+    use_mock_inference: bool = True
+    model_path: Optional[str] = None
+    confidence_threshold: float = 0.5
+    
+    # LLM (optional)
+    openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
 
 settings = Settings()
