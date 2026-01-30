@@ -7,12 +7,13 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
 # Image Processing
-Pillow==10.2.0
-numpy==1.26.3
+Pillow
+numpy
 
 # Machine Learning
-torch==2.1.2
-torchvision==0.16.2
+torch
+torchvision
+transformers==4.36.2
 
 # Optional: LLM Integration
 openai==1.10.0
@@ -20,5 +21,4 @@ anthropic==0.8.1
 
 # Utilities
 python-dotenv==1.0.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
+pydantic
