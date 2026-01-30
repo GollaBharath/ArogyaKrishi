@@ -5,12 +5,176 @@ ArogyaKrishi is a mobile application designed to help farmers detect crop diseas
 ## Features
 
 - 📷 **Image Capture & Gallery Selection** - Take photos or select from gallery
-- 🔍 **Disease Detection** - Upload images for AI-powered crop disease detection
+- 🔍 **Disease Detection** - Upload images for AI-powered crop disease detection (requires backend)
 - 💊 **Remedy Recommendations** - Get actionable remedies for detected diseases
 - 🗺️ **Nearby Alerts** - View disease alerts in your vicinity
 - 🌐 **Multi-language Support** - English, Telugu, and Hindi
-- 📴 **Offline Mode** - Basic disease diagnosis without internet
+- 📴 **Offline Mode** - Complete disease diagnosis without internet ✨ NEW!
 - 🔔 **Local Reminders** - Set reminders for treatment schedules
+
+## Offline Mode (NEW!)
+
+The app now includes a complete offline diagnosis system that works without an internet connection. This allows farmers to perform crop disease diagnosis anywhere, anytime.
+
+### How to Use Offline Mode
+
+1. **Open the app** - The app automatically detects your internet connection
+2. **When offline** - You'll see an "Offline" badge in the app bar and an offline notification
+3. **Click "Offline Diagnosis"** - This opens the offline diagnosis wizard
+4. **Follow these steps:**
+   - **Select your crop** - Choose from available crops (Rice, Wheat, Cotton, Tomato, Potato, etc.)
+   - **Select symptoms** - Check all symptoms you observe on your crop
+   - **Get diagnosis** - The app analyzes symptoms and suggests the likely disease
+   - **View remedies** - Get step-by-step remedy recommendations
+
+### Offline Mode Data Structure
+
+The offline diagnosis system uses mock data that is easy to customize. All data is stored in `lib/services/mock_data_service.dart`.
+
+#### Adding or Modifying Crops
+
+Edit the `crops` map in `mock_data_service.dart`:
+
+```dart
+static const Map<String, String> crops = {
+  'rice': 'Rice',
+  'wheat': 'Wheat',
+  'cotton': 'Cotton',
+  'tomato': 'Tomato',
+  'potato': 'Potato',
+  'groundnut': 'Groundnut',
+  'sugarcane': 'Sugarcane',
+  'maize': 'Maize',
+  // Add your crop here
+  'new_crop_id': 'Display Name',
+};
+```
+
+#### Adding or Modifying Symptoms
+
+Edit the `symptoms` map in `mock_data_service.dart`:
+
+```dart
+static const Map<String, Map<String, String>> symptoms = {
+  'yellow_leaves': {
+    'name': 'Yellow Leaves',
+    'description': 'Leaves are turning yellow',
+  },
+  // Add your symptom here
+  'new_symptom_id': {
+    'name': 'Symptom Display Name',
+    'description': 'Brief description of the symptom',
+  },
+};
+```
+
+#### Adding or Modifying Diseases
+
+Edit the `diseases` map in `mock_data_service.dart`:
+
+```dart
+static const Map<String, Map<String, dynamic>> diseases = {
+  'blast': {
+    'name': 'Blast',
+    'description': 'Fungal disease affecting rice',
+    'remedies': [
+      'Spray with Mancozeb (0.2%) or Carbendazim (0.1%)',
+      'Remove infected leaves and burn them',
+      'Ensure proper drainage in fields',
+      'Avoid over-watering and heavy nitrogen application',
+    ],
+  },
+  // Add your disease here
+  'new_disease_id': {
+    'name': 'Disease Display Name',
+    'description': 'Description of the disease and its effects',
+    'remedies': [
+      'Remedy step 1',
+      'Remedy step 2',
+      'Remedy step 3',
+      'Remedy step 4',
+    ],
+  },
+};
+```
+
+#### Linking Crops to Diseases
+
+Edit the `cropDiseases` map to define which diseases affect which crops:
+
+```dart
+static const Map<String, List<String>> cropDiseases = {
+  'rice': ['blast', 'leaf_spot', 'yellowing_virus'],
+  'wheat': ['leaf_spot', 'powdery_mildew'],
+  // Add mapping for your crop
+  'your_crop_id': ['disease_id_1', 'disease_id_2', 'disease_id_3'],
+};
+```
+
+#### Linking Symptoms to Diseases
+
+Edit the `diseaseSymptoms` map to define which symptoms indicate which diseases:
+
+```dart
+static const Map<String, List<String>> diseaseSymptoms = {
+  'blast': ['brown_spots', 'wilting'],
+  'leaf_spot': ['brown_spots', 'yellow_leaves'],
+  // Add mapping for your disease
+  'your_disease_id': ['symptom_id_1', 'symptom_id_2', 'symptom_id_3'],
+};
+```
+
+### Example: Adding New Crop and Disease Data
+
+Let's say you want to add a new crop "Chili" with a disease "Leaf Curl":
+
+1. **Add the crop** to `crops` map:
+
+   ```dart
+   'chili': 'Chili',
+   ```
+
+2. **Add symptoms** to `symptoms` map (if new):
+
+   ```dart
+   'severe_wilting': {
+     'name': 'Severe Wilting',
+     'description': 'Severe drooping and wilting of leaves',
+   },
+   ```
+
+3. **Add the disease** to `diseases` map:
+
+   ```dart
+   'chili_leaf_curl': {
+     'name': 'Chili Leaf Curl',
+     'description': 'Viral disease causing severe leaf curling',
+     'remedies': [
+       'Remove and destroy infected plants',
+       'Control insect vectors with insecticide',
+       'Use yellow sticky traps for monitoring',
+       'Plant resistant varieties',
+     ],
+   },
+   ```
+
+4. **Map crop to disease** in `cropDiseases`:
+
+   ```dart
+   'chili': ['chili_leaf_curl', 'powdery_mildew'],
+   ```
+
+5. **Map disease to symptoms** in `diseaseSymptoms`:
+
+   ```dart
+   'chili_leaf_curl': ['leaf_curl', 'severe_wilting'],
+   ```
+
+6. **Save and run:**
+   ```bash
+   flutter pub get
+   flutter run
+   ```
 
 ## Prerequisites
 
@@ -33,7 +197,7 @@ ArogyaKrishi is a mobile application designed to help farmers detect crop diseas
    flutter pub get
    ```
 
-3. **Configure Backend URL**
+3. **Configure Backend URL** (for online mode)
 
    Update the API base URL in `lib/services/api_service.dart`:
 
@@ -72,16 +236,19 @@ flutter build apk --debug
 
 ```
 lib/
-├── main.dart                 # App entry point
-├── models/                   # Data models
+├── main.dart                           # App entry point
+├── models/                             # Data models
 │   ├── detection_result.dart
 │   └── nearby_alert.dart
-├── screens/                  # UI screens
-│   └── home_screen.dart
-├── services/                 # Business logic
+├── screens/                            # UI screens
+│   ├── home_screen.dart
+│   └── offline_detection_screen.dart   # NEW: Offline diagnosis UI
+├── services/                           # Business logic
 │   ├── api_service.dart
-│   └── image_service.dart
-└── utils/                    # Utilities & constants
+│   ├── image_service.dart
+│   ├── mock_data_service.dart          # NEW: Offline data
+│   └── offline_detector.dart           # NEW: Connectivity detection
+└── utils/                              # Utilities & constants
     ├── constants.dart
     └── state_management.dart
 ```
@@ -94,6 +261,7 @@ The app requires the following Android permissions:
 - `CAMERA` - Capture plant images
 - `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` - Gallery access
 - `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` - Nearby alerts (optional)
+- `CHANGE_NETWORK_STATE` (implicit) - Detect network connectivity
 
 ## Testing
 
@@ -140,6 +308,10 @@ flutter test --coverage
 
 - **Solution**: Run `flutter clean && flutter pub get`
 
+**Issue**: Offline mode not appearing
+
+- **Solution**: Disable internet in device settings or disable WiFi/mobile data
+
 ### Useful Commands
 
 ```bash
@@ -160,9 +332,9 @@ flutter analyze
 
 See `../agent-context/checklist-android.md` for the full development checklist and progress tracking.
 
-## Backend Integration
+## Backend Integration (When Ready)
 
-This app connects to the ArogyaKrishi Python FastAPI backend. See `../app/` directory for backend setup.
+This app can connect to the ArogyaKrishi Python FastAPI backend for online image detection. See `../app/` directory for backend setup.
 
 ### API Endpoints
 
