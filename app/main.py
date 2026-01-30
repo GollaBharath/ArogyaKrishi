@@ -1,23 +1,36 @@
 """Application entrypoint for ArogyaKrishi backend.
 
-This file initializes the FastAPI app object. Additional middleware, routers,
-startup/shutdown handlers, and endpoints will be added in subsequent checklist
-steps (one checkbox at a time).
+FastAPI app with detection endpoints, database setup, ML model integration.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import logging
+import time as _time
+
+from app.config import settings
+from app.db.session import engine, Base
+from app.services.ml_service import load_models
+from app.services.remedy_service import load_remedies
+from app.api.detection import router as detection_router
 
 APP_VERSION = "0.1.0"
 
 app = FastAPI(title="ArogyaKrishi Backend", version=APP_VERSION)
 
-# CORS configuration — keep permissive for development, tighten in production
+# Logging setup
+logger = logging.getLogger("arogyakrishi")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+# CORS configuration
 ALLOWED_ORIGINS = [
     "http://localhost",
     "http://localhost:3000",
     "http://127.0.0.1",
     "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://localhost:8001",
 ]
 
 app.add_middleware(
@@ -27,42 +40,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup / shutdown handlers
-import logging
-from typing import Any
-
-logger = logging.getLogger("arogyakrishi")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    """Run initialization tasks at application startup.
-
-    - Load ML model (placeholder)
-    - Initialize DB connections (placeholder)
-    - Load remedy data (placeholder)
-    """
+    """Initialize application on startup."""
     logger.info("Starting ArogyaKrishi backend (version=%s)", APP_VERSION)
-    # record start time for uptime
-    import time
+    
+    # Record start time
+    app.state.start_time = _time.time()
+    
+    # Create database tables
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+    
+    # Load ML models
+    try:
+        load_models()
+        logger.info("ML models loaded")
+    except Exception as e:
+        logger.warning(f"ML model loading error: {e}")
+    
+    # Load remedies
+    try:
+        load_remedies()
+        logger.info("Remedies loaded")
+    except Exception as e:
+        logger.warning(f"Remedies loading error: {e}")
 
-    app.state.start_time = time.time()
-    # TODO: load_model(), init_db(), load_remedies()
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
-    """Cleanup tasks at application shutdown."""
+    """Cleanup on shutdown."""
     logger.info("Shutting down ArogyaKrishi backend")
-
-# Health and version endpoints
-from fastapi import status
-from fastapi.responses import JSONResponse
-import time as _time
+    await engine.dispose()
 
 
 @app.get("/health", response_class=JSONResponse, status_code=status.HTTP_200_OK)
 async def health() -> JSONResponse:
-    """Simple health endpoint returning status and uptime (seconds)."""
+    """Health check endpoint."""
     start = getattr(app.state, "start_time", None)
     uptime = None
     if start:
@@ -73,9 +92,12 @@ async def health() -> JSONResponse:
 
 @app.get("/version", response_class=JSONResponse, status_code=status.HTTP_200_OK)
 async def version() -> JSONResponse:
-    """Return application version and description."""
+    """Return application version."""
     payload = {"version": APP_VERSION, "service": "ArogyaKrishi Backend"}
     return JSONResponse(content=payload)
 
-# TODO: add routers per checklist items
+
+# Include routers
+app.include_router(detection_router)
+
 __all__ = ["app"]
