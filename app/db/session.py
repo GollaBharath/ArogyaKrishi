@@ -4,7 +4,12 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./arogya_krishi.db")
+# PostgreSQL connection URL
+# Default: postgresql+psycopg://user:password@localhost:5432/arogya_krishi
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql+psycopg://arogya_user:arogya_password@localhost:5432/arogya_krishi"
+)
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -28,3 +33,4 @@ async def get_db() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
