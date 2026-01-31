@@ -105,3 +105,56 @@ Response:
 	"ok": true
 }
 ```
+
+---
+
+## Chatbot APIs
+
+POST /api/chat/text
+Request:
+
+- JSON body
+  - message (required): User's text message
+  - language (required): Language code (en|hi|te)
+  - session_id (optional): Session identifier for conversation continuity
+
+Response:
+
+```json
+{
+	"reply": "string",
+	"audio_url": "string | null",
+	"session_id": "string",
+	"language": "string",
+	"message_id": "string"
+}
+```
+
+POST /api/chat/voice
+Request:
+
+- multipart/form-data
+  - audio (required): Audio file (WAV format)
+  - language (required): Language code (en|hi|te)
+  - session_id (optional): Session identifier for conversation continuity
+
+Response:
+
+```json
+{
+	"reply": "string",
+	"audio_url": "string | null",
+	"session_id": "string",
+	"language": "string",
+	"message_id": "string"
+}
+```
+
+Notes:
+
+- Session-based conversation tracking
+- Backend handles LLM integration
+- Audio URL is optional (TTS-generated response)
+- Flutter uses speech_to_text for voice input
+- Flutter uses flutter_tts for local TTS
+- Audio playback via audioplayers package

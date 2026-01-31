@@ -15,6 +15,7 @@ from sqlalchemy import text
 from app.services.ml_service import load_models
 from app.services.remedy_service import load_remedies
 from app.api.detection import router as detection_router
+from app.api.chat import router as chat_router
 
 APP_VERSION = "0.1.0"
 
@@ -103,5 +104,6 @@ async def version() -> JSONResponse:
 
 # Include routers
 app.include_router(detection_router)
+app.include_router(chat_router)
 
 __all__ = ["app"]
