@@ -1,7 +1,8 @@
 """Chat API routes for agricultural chatbot."""
 
 import logging
-from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form
+from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form, Request
+from fastapi.responses import Response
 from typing import Optional
 
 from ..models.chat import ChatTextRequest, ChatResponse
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 @router.post("/text", response_model=ChatResponse)
-async def chat_text(request: ChatTextRequest) -> ChatResponse:
+async def chat_text(request: ChatTextRequest, http_request: Request) -> ChatResponse:
     """
     Process text chat message.
     
@@ -58,6 +59,7 @@ async def chat_text(request: ChatTextRequest) -> ChatResponse:
 
 @router.post("/voice", response_model=ChatResponse)
 async def chat_voice(
+    http_request: Request,
     audio: UploadFile = File(..., description="Audio file (WAV format)"),
     language: str = Form(..., description="Language code: en, hi, te"),
     session_id: Optional[str] = Form(None, description="Session ID for continuity")
@@ -92,6 +94,9 @@ async def chat_voice(
             language=language,
             session_id=session_id
         )
+
+        if audio_url and audio_url.startswith("/api/"):
+            audio_url = str(http_request.base_url).rstrip("/") + audio_url
         
         return ChatResponse(
             reply=reply,
@@ -109,3 +114,16 @@ async def chat_voice(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error processing voice message"
         )
+
+
+@router.get("/audio/{audio_id}")
+async def get_audio(audio_id: str) -> Response:
+    """Fetch generated TTS audio by ID."""
+    audio_data = ChatbotService.get_audio(audio_id)
+    if not audio_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Audio not found",
+        )
+    audio_bytes, mime_type = audio_data
+    return Response(content=audio_bytes, media_type=mime_type)

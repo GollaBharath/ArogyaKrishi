@@ -1,9 +1,15 @@
 """Chatbot service for agricultural assistance."""
 
+import io
 import logging
+import re
 import uuid
 from typing import Dict, Optional, Tuple
 import random
+
+from openai import AsyncOpenAI
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +19,10 @@ _sessions: Dict[str, list] = {}
 
 class ChatbotService:
     """Service for chatbot interactions."""
+
+    _client: Optional[AsyncOpenAI] = None
+    _audio_store: Dict[str, bytes] = {}
+    _audio_mime: Dict[str, str] = {}
     
     # Sample responses for agricultural questions (multilingual)
     RESPONSES = {
@@ -47,6 +57,39 @@ class ChatbotService:
         new_id = str(uuid.uuid4())
         _sessions[new_id] = []
         return new_id
+
+    @classmethod
+    def _get_client(cls) -> AsyncOpenAI:
+        if not settings.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if cls._client is None:
+            cls._client = AsyncOpenAI(api_key=settings.openai_api_key)
+        return cls._client
+
+    @classmethod
+    def _detect_language_code(cls, text: str) -> str:
+        # Basic script detection for auto mode
+        if re.search(r"[\u0900-\u097F]", text):
+            return "hi"
+        if re.search(r"[\u0C00-\u0C7F]", text):
+            return "te"
+        return "en"
+
+    @classmethod
+    def _build_system_prompt(cls, language: str) -> str:
+        return (
+            "You are ArogyaKrishi, an agricultural assistant for farmers. "
+            "Provide concise, practical guidance. "
+            f"Reply in language code '{language}'."
+        )
+
+    @classmethod
+    def _normalize_language(cls, language: Optional[str], text_hint: Optional[str] = None) -> str:
+        if not language or language == "auto":
+            if text_hint:
+                return cls._detect_language_code(text_hint)
+            return "en"
+        return language
     
     @classmethod
     def add_to_history(cls, session_id: str, role: str, content: str) -> None:
@@ -77,6 +120,7 @@ class ChatbotService:
         Returns:
             Tuple of (reply, session_id, message_id)
         """
+        language = cls._normalize_language(language, message)
         logger.info(f"Processing text message: {message[:50]}... (lang={language})")
         
         # Get or create session
@@ -85,9 +129,26 @@ class ChatbotService:
         # Add user message to history
         cls.add_to_history(session_id, "user", message)
         
-        # Generate response (stub - replace with actual LLM call)
-        responses = cls.RESPONSES.get(language, cls.RESPONSES["en"])
-        reply = random.choice(responses)
+        reply = None
+        try:
+            client = cls._get_client()
+
+            history = _sessions.get(session_id, [])
+            messages = [
+                {"role": "system", "content": cls._build_system_prompt(language)},
+                *history,
+            ]
+
+            response = await client.chat.completions.create(
+                model=settings.openai_chat_model,
+                messages=messages,
+                temperature=0.3,
+            )
+            reply = (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            logger.warning(f"OpenAI chat failed, falling back to stub: {e}")
+            responses = cls.RESPONSES.get(language, cls.RESPONSES["en"])
+            reply = random.choice(responses)
         
         # Add assistant message to history
         cls.add_to_history(session_id, "assistant", reply)
@@ -117,21 +178,50 @@ class ChatbotService:
         Returns:
             Tuple of (reply, session_id, message_id, audio_url)
         """
+        language = cls._normalize_language(language)
         logger.info(f"Processing voice message (lang={language}, size={len(audio_bytes)} bytes)")
         
         # Get or create session
         session_id = cls.get_session_id(session_id)
         
-        # TODO: Implement speech-to-text transcription
-        # For now, use a placeholder message
         transcribed_text = "[Voice message received]"
+        try:
+            client = cls._get_client()
+            audio_file = io.BytesIO(audio_bytes)
+            audio_file.name = "audio.wav"
+
+            stt_kwargs = {"model": settings.openai_stt_model, "file": audio_file}
+            if language in {"en", "hi", "te", "kn", "ml"}:
+                stt_kwargs["language"] = language
+
+            transcription = await client.audio.transcriptions.create(**stt_kwargs)
+            transcribed_text = (transcription.text or "").strip() or transcribed_text
+        except Exception as e:
+            logger.warning(f"OpenAI transcription failed, using placeholder: {e}")
         
         # Add user message to history
         cls.add_to_history(session_id, "user", transcribed_text)
         
-        # Generate response (stub - replace with actual LLM call)
-        responses = cls.RESPONSES.get(language, cls.RESPONSES["en"])
-        reply = random.choice(responses)
+        reply = None
+        try:
+            client = cls._get_client()
+
+            history = _sessions.get(session_id, [])
+            messages = [
+                {"role": "system", "content": cls._build_system_prompt(language)},
+                *history,
+            ]
+
+            response = await client.chat.completions.create(
+                model=settings.openai_chat_model,
+                messages=messages,
+                temperature=0.3,
+            )
+            reply = (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            logger.warning(f"OpenAI chat failed, falling back to stub: {e}")
+            responses = cls.RESPONSES.get(language, cls.RESPONSES["en"])
+            reply = random.choice(responses)
         
         # Add assistant message to history
         cls.add_to_history(session_id, "assistant", reply)
@@ -139,10 +229,28 @@ class ChatbotService:
         # Generate message ID
         message_id = str(uuid.uuid4())
         
-        # TODO: Implement text-to-speech for audio URL
-        # For now, return None (client will use flutter_tts)
         audio_url = None
+        try:
+            client = cls._get_client()
+            tts_response = await client.audio.speech.create(
+                model=settings.openai_tts_model,
+                voice=settings.openai_tts_voice,
+                input=reply,
+            )
+            audio_bytes = await tts_response.read()
+            audio_id = str(uuid.uuid4())
+            cls._audio_store[audio_id] = audio_bytes
+            cls._audio_mime[audio_id] = "audio/mpeg"
+            audio_url = f"/api/chat/audio/{audio_id}"
+        except Exception as e:
+            logger.warning(f"OpenAI TTS failed, returning no audio: {e}")
         
         logger.info(f"Generated voice response for session {session_id}")
         
         return reply, session_id, message_id, audio_url
+
+    @classmethod
+    def get_audio(cls, audio_id: str) -> Optional[Tuple[bytes, str]]:
+        if audio_id not in cls._audio_store:
+            return None
+        return cls._audio_store[audio_id], cls._audio_mime.get(audio_id, "audio/mpeg")

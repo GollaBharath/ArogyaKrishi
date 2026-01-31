@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
 
+    # OpenAI Models (optional)
+    openai_chat_model: str = "gpt-4o-mini"
+    openai_stt_model: str = "gpt-4o-mini-transcribe"
+    openai_tts_model: str = "gpt-4o-mini-tts"
+    openai_tts_voice: str = "alloy"
+
     
     class Config:
         env_file = ".env"
